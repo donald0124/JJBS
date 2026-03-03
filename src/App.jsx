@@ -1,0 +1,500 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  ChevronDown, 
+  ChevronUp, 
+  Share2, 
+  Info, 
+  AlertCircle, 
+  CheckCircle2, 
+  Trophy, 
+  User,
+  Dumbbell,
+  Flame
+} from 'lucide-react';
+
+// --- 初始資料結構 ---
+const initialMemberState = {
+  name: '',
+  gender: 'male',
+  height: '',
+  initialWeight: '',
+  initialFat: '',
+  currentWeight: '',
+  currentFat: ''
+};
+
+const defaultMembers = [
+  { ...initialMemberState, id: 0, name: '隊員 A' },
+  { ...initialMemberState, id: 1, name: '隊員 B' },
+  { ...initialMemberState, id: 2, name: '隊員 C' },
+  { ...initialMemberState, id: 3, name: '隊員 D' },
+];
+
+export default function App() {
+  // --- 狀態管理 ---
+  const [teamName, setTeamName] = useState('');
+  const [members, setMembers] = useState(defaultMembers);
+  const [expandedId, setExpandedId] = useState(0); // 預設展開第一位
+  const [showRules, setShowRules] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
+
+  // --- LocalStorage 存取 ---
+  useEffect(() => {
+    const savedData = localStorage.getItem('health-leverage-3-data');
+    if (savedData) {
+      try {
+        const { teamName: savedName, members: savedMembers } = JSON.parse(savedData);
+        if (savedName) setTeamName(savedName);
+        if (savedMembers && savedMembers.length === 4) setMembers(savedMembers);
+      } catch (e) {
+        console.error("Failed to parse saved data", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('health-leverage-3-data', JSON.stringify({ teamName, members }));
+  }, [teamName, members]);
+
+  // --- 核心運算邏輯 (即時計算) ---
+  const teamStats = useMemo(() => {
+    let validMembersCount = 0;
+    let membersMeetingWeightGoal = 0;
+    let totalFatDrop = 0;
+    let totalPersonalScore = 0;
+
+    const processedMembers = members.map(m => {
+      const heightM = parseFloat(m.height) / 100;
+      const initW = parseFloat(m.initialWeight);
+      const currW = parseFloat(m.currentWeight);
+      const initFat = parseFloat(m.initialFat);
+      const currFat = parseFloat(m.currentFat);
+
+      // 檢查是否填寫完整且數值合理
+      const isValid = heightM > 0 && initW > 0 && currW > 0 && !isNaN(initFat) && !isNaN(currFat) && initFat > 0 && currFat > 0;
+
+      if (!isValid) {
+        return { ...m, isValid: false, stats: null };
+      }
+
+      validMembersCount++;
+      const weightDrop = initW - currW;
+      const initBMI = initW / (heightM * heightM);
+      const currBMI = currW / (heightM * heightM);
+      const bmiDrop = initBMI - currBMI;
+      const fatDrop = initFat - currFat;
+
+      const baseLeverage = m.gender === 'male' ? 24 : 21;
+      const actualLeverage = Math.max(initBMI - baseLeverage, 2);
+      
+      const score = (bmiDrop * 10 * actualLeverage) + (fatDrop * 10);
+
+      if (weightDrop >= 1) membersMeetingWeightGoal++;
+      totalFatDrop += fatDrop;
+      totalPersonalScore += score;
+
+      return {
+        ...m,
+        isValid: true,
+        stats: {
+          weightDrop: weightDrop.toFixed(1),
+          bmiDrop: bmiDrop.toFixed(2),
+          fatDrop: fatDrop.toFixed(1),
+          leverage: actualLeverage.toFixed(1),
+          score: Math.max(0, Math.round(score)) // 分數不為負
+        }
+      };
+    });
+
+    const isWeightGoalMet = membersMeetingWeightGoal === 4;
+    const isFatGoalMet = totalFatDrop > 15;
+
+    let multiplier = 1.0;
+    let teamTier = "參加獎";
+    
+    // 嚴格判定：必須 4 人都有效資料才給予加成判定
+    if (validMembersCount === 4) {
+      if (isWeightGoalMet && isFatGoalMet) {
+        multiplier = 1.5;
+        teamTier = "傳奇團隊";
+      } else if (isWeightGoalMet) {
+        multiplier = 1.3;
+        teamTier = "精實團隊";
+      }
+    }
+
+    // 平均分以 4 人計算 (強迫湊滿4人)
+    const avgScore = validMembersCount === 4 ? (totalPersonalScore / 4) : 0;
+    const finalScore = Math.round(avgScore * multiplier);
+
+    return {
+      members: processedMembers,
+      validMembersCount,
+      membersMeetingWeightGoal,
+      totalFatDrop: totalFatDrop.toFixed(1),
+      isWeightGoalMet,
+      isFatGoalMet,
+      multiplier,
+      teamTier,
+      finalScore
+    };
+  }, [members]);
+
+  // --- 事件處理 ---
+  const handleMemberChange = (id, field, value) => {
+    const newMembers = [...members];
+    newMembers[id] = { ...newMembers[id], [field]: value };
+    setMembers(newMembers);
+  };
+
+  const generateShareText = () => {
+    let text = `🏆【2026減重競賽】最新戰報！${teamName ? `\n🏷️ 隊伍：${teamName}` : ''}\n`;
+    text += `🔥 目前團隊總分：${teamStats.finalScore} 分 (倍率 x${teamStats.multiplier})\n\n`;
+    
+    text += `📊 團隊加成任務：\n`;
+    text += `${teamStats.isWeightGoalMet ? '✅' : '❌'} 全員減重大於 1kg (${teamStats.membersMeetingWeightGoal}/4達成)\n`;
+    text += `${teamStats.isFatGoalMet ? '✅' : '❌'} 體脂降幅大於 15% (累計 ${teamStats.totalFatDrop}%)\n\n`;
+
+    text += `👤 隊員個別貢獻：\n`;
+    teamStats.members.forEach(m => {
+      if (m.isValid) {
+        text += `- ${m.name || '未命名'} (${m.gender === 'male' ? '男' : '女'}): 貢獻 ${m.stats.score}分 (槓桿 ${m.stats.leverage}x)\n`;
+      } else {
+        text += `- ${m.name || '未命名'}: 資料未齊全\n`;
+      }
+    });
+
+    text += `\n💪 繼續加油，脂肪殺手們！\n👉 點此模擬分數：https://donald0124.github.io/JJBS/`;
+    return text;
+  };
+
+  const handleCopy = () => {
+    const text = generateShareText();
+    // 使用 fallback 方法以支援 iframe 環境
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      setCopyStatus('已複製到剪貼簿！');
+      setTimeout(() => setCopyStatus(''), 3000);
+    } catch (err) {
+      console.error('複製失敗', err);
+      setCopyStatus('複製失敗，請手動複製');
+      setTimeout(() => setCopyStatus(''), 3000);
+    }
+    document.body.removeChild(textArea);
+  };
+
+  const clearData = () => {
+      setTeamName('');
+      setMembers(defaultMembers);
+      setExpandedId(0);
+  }
+
+  // --- UI 元件 ---
+  return (
+    <div className="min-h-screen bg-slate-50 pb-24 font-sans text-slate-800">
+      
+      {/* --- Top Header --- */}
+      <header className="bg-blue-600 text-white p-4 shadow-md rounded-b-2xl relative z-10">
+        <div className="max-w-md mx-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <Dumbbell className="w-6 h-6 text-blue-200" />
+              2026減重競賽試算工具
+            </h1>
+            <button 
+              onClick={() => setShowRules(true)}
+              className="p-2 bg-blue-500/50 rounded-full hover:bg-blue-400 transition"
+            >
+              <Info className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm border border-white/20">
+            <p className="text-blue-100 text-sm mb-1">團隊預估總分</p>
+            <div className="text-5xl font-extrabold tracking-tight mb-2">
+              {teamStats.finalScore}
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <span className={`px-2 py-1 rounded-md font-bold ${
+                teamStats.multiplier === 1.5 ? 'bg-yellow-400 text-yellow-900 shadow-[0_0_15px_rgba(250,204,21,0.5)]' :
+                teamStats.multiplier === 1.3 ? 'bg-green-400 text-green-900' : 'bg-slate-400 text-slate-900'
+              }`}>
+                倍率 x {teamStats.multiplier.toFixed(1)}
+              </span>
+              <span className="text-blue-50 font-medium">({teamStats.teamTier})</span>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <input 
+              type="text" 
+              placeholder="輸入隊伍名稱 (選填)..." 
+              className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-2 text-white placeholder-blue-200/70 focus:outline-none focus:ring-2 focus:ring-white/50"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+            />
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-md mx-auto p-4 space-y-6">
+        
+        {/* --- 團隊任務儀表板 --- */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+          <h2 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-500" />
+            團隊加成任務
+          </h2>
+          
+          <div className="space-y-3">
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-600 font-medium">任務 1：全員減重 &ge; 1kg</span>
+                <span className={`font-bold ${teamStats.isWeightGoalMet ? 'text-green-500' : 'text-slate-500'}`}>
+                  {teamStats.membersMeetingWeightGoal} / 4 人
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5">
+                <div className={`h-2.5 rounded-full ${teamStats.isWeightGoalMet ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${(teamStats.membersMeetingWeightGoal / 4) * 100}%` }}></div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-600 font-medium">任務 2：總降體脂 &gt; 15%</span>
+                <span className={`font-bold ${teamStats.isFatGoalMet ? 'text-green-500' : 'text-slate-500'}`}>
+                  {teamStats.totalFatDrop}%
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 relative">
+                 <div className="absolute top-0 bottom-0 left-[15%] w-px bg-red-400 z-10"></div>
+                <div className={`h-2.5 rounded-full ${teamStats.isFatGoalMet ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (parseFloat(teamStats.totalFatDrop) / 20) * 100)}%` }}></div>
+              </div>
+            </div>
+          </div>
+          {teamStats.validMembersCount < 4 && (
+            <div className="mt-3 text-xs text-amber-600 flex items-center gap-1 bg-amber-50 p-2 rounded-lg">
+              <AlertCircle className="w-4 h-4" />
+              需填滿 4 人完整資料才能觸發加成倍率
+            </div>
+          )}
+        </section>
+
+        {/* --- 隊員資料區 (手風琴) --- */}
+        <section className="space-y-3">
+          {teamStats.members.map((member, index) => {
+            const isExpanded = expandedId === index;
+            const hasWarning = member.isValid && parseFloat(member.stats.weightDrop) < 1;
+            
+            return (
+              <div key={member.id} className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${hasWarning ? 'border-red-200' : 'border-slate-200'} ${isExpanded ? 'shadow-md ring-1 ring-blue-500/20' : 'shadow-sm'}`}>
+                
+                {/* Accordion Header */}
+                <button 
+                  className="w-full p-4 flex justify-between items-center bg-white text-left focus:outline-none"
+                  onClick={() => setExpandedId(isExpanded ? null : index)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${member.gender === 'male' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'}`}>
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-800">{member.name || `隊員 ${index + 1}`}</span>
+                        {hasWarning && <AlertCircle className="w-4 h-4 text-red-500" />}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {member.isValid ? (
+                          <span>槓桿 {member.stats.leverage}x | 貢獻 <span className="font-bold text-blue-600">{member.stats.score}</span> 分</span>
+                        ) : (
+                          <span>請輸入資料</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                </button>
+
+                {/* Accordion Body */}
+                {isExpanded && (
+                  <div className="p-4 pt-0 border-t border-slate-50 bg-slate-50/50">
+                    <div className="grid grid-cols-2 gap-3 mb-4 mt-3">
+                      <div className="col-span-2 flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="姓名/暱稱"
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          value={member.name}
+                          onChange={(e) => handleMemberChange(index, 'name', e.target.value)}
+                        />
+                        <select 
+                          className="w-24 bg-white border border-slate-200 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          value={member.gender}
+                          onChange={(e) => handleMemberChange(index, 'gender', e.target.value)}
+                        >
+                          <option value="male">男生</option>
+                          <option value="female">女生</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                         <label className="block text-xs text-slate-500 mb-1">身高 (cm)</label>
+                         <input type="number" step="0.1" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm" value={member.height} onChange={(e) => handleMemberChange(index, 'height', e.target.value)} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* 前測區塊 */}
+                      <div className="bg-slate-100 p-3 rounded-xl border border-slate-200/60">
+                        <div className="text-xs font-bold text-slate-500 mb-2">前測基準</div>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-[11px] text-slate-400 mb-0.5">體重 (kg)</label>
+                            <input type="number" step="0.1" className="w-full bg-white border-transparent rounded-md px-2 py-1.5 text-sm" value={member.initialWeight} onChange={(e) => handleMemberChange(index, 'initialWeight', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] text-slate-400 mb-0.5">體脂 (%)</label>
+                            <input type="number" step="0.1" className="w-full bg-white border-transparent rounded-md px-2 py-1.5 text-sm" value={member.initialFat} onChange={(e) => handleMemberChange(index, 'initialFat', e.target.value)} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 最新區塊 */}
+                      <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                        <div className="text-xs font-bold text-blue-600 mb-2">最新進度</div>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-[11px] text-blue-400 mb-0.5">體重 (kg)</label>
+                            <input type="number" step="0.1" className="w-full bg-white border-transparent rounded-md px-2 py-1.5 text-sm" value={member.currentWeight} onChange={(e) => handleMemberChange(index, 'currentWeight', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] text-blue-400 mb-0.5">體脂 (%)</label>
+                            <input type="number" step="0.1" className="w-full bg-white border-transparent rounded-md px-2 py-1.5 text-sm" value={member.currentFat} onChange={(e) => handleMemberChange(index, 'currentFat', e.target.value)} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 個人成果統計 */}
+                    {member.isValid && (
+                      <div className="mt-4 bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
+                        <div className="flex gap-4">
+                          <div className="text-center">
+                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">減重</div>
+                            <div className={`text-sm font-bold ${hasWarning ? 'text-red-500' : 'text-slate-700'}`}>
+                              {member.stats.weightDrop > 0 ? `-${member.stats.weightDrop}` : member.stats.weightDrop} <span className="text-[10px] font-normal">kg</span>
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">降脂</div>
+                            <div className="text-sm font-bold text-slate-700">
+                              {member.stats.fatDrop > 0 ? `-${member.stats.fatDrop}` : member.stats.fatDrop} <span className="text-[10px] font-normal">%</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                           <div className="text-[10px] text-blue-400 font-bold uppercase tracking-wider flex items-center justify-end gap-1">
+                             <Flame className="w-3 h-3" /> 貢獻積分
+                           </div>
+                           <div className="text-xl font-extrabold text-blue-600">{member.stats.score}</div>
+                        </div>
+                      </div>
+                    )}
+                    {hasWarning && (
+                       <div className="mt-2 text-[11px] text-red-500 flex items-start gap-1">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                          <span>注意：此隊員減重未達 1kg，將導致全隊失去加成倍率。</span>
+                       </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </section>
+        
+        <div className="text-center pb-4">
+           <button onClick={clearData} className="text-xs text-slate-400 hover:text-red-500 underline">清除所有資料 (重置)</button>
+        </div>
+
+      </main>
+
+      {/* --- Bottom Sticky Bar --- */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 p-4 pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="max-w-md mx-auto flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="text-xs text-slate-500 font-medium">總結算分數</div>
+            <div className="text-2xl font-black text-slate-800 flex items-baseline gap-1">
+              {teamStats.finalScore} <span className="text-sm text-blue-500 font-bold">PTS</span>
+            </div>
+          </div>
+          
+          <button 
+            onClick={handleCopy}
+            className="bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-600/30"
+          >
+            {copyStatus ? <CheckCircle2 className="w-5 h-5" /> : <Share2 className="w-5 h-5" />}
+            {copyStatus || '一鍵複製戰報'}
+          </button>
+        </div>
+      </div>
+
+      {/* --- 規則彈出視窗 --- */}
+      {showRules && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                 <Info className="w-5 h-5" /> 賽制規則說明
+              </h3>
+              <button onClick={() => setShowRules(false)} className="text-blue-200 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-5 overflow-y-auto space-y-4 text-sm text-slate-700">
+              <section>
+                <h4 className="font-bold text-blue-600 mb-2 border-b border-blue-100 pb-1">🧮 1. 個人積分 (Personal Score)</h4>
+                <p className="mb-2 text-xs bg-slate-50 p-2 rounded">公式：[(BMI降幅 × 10) × 性別槓桿] + [體脂降幅 × 10]</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>性別槓桿：</strong> 男生以 BMI 24 為基準，女生以 21 為基準。</li>
+                  <li><strong>槓桿計算：</strong> 初始 BMI 減去基準值。最低保底 2 倍。(確保較瘦的隊友努力也有分)</li>
+                  <li><strong>體脂獎勵：</strong> 每降 1% 得 10 分 (不乘槓桿，純累計)。</li>
+                </ul>
+              </section>
+              <section>
+                <h4 className="font-bold text-blue-600 mb-2 border-b border-blue-100 pb-1">🚀 2. 團隊加成 (Team Multiplier)</h4>
+                <p className="mb-2 text-xs bg-slate-50 p-2 rounded">最終得分 = (全隊個人積分平均) × 加成倍率</p>
+                <div className="space-y-2">
+                  <div className="bg-yellow-50 border border-yellow-200 p-2 rounded">
+                    <strong>x 1.5 傳奇團隊</strong><br/>
+                    1. 全員 4 人體重皆減少 &ge; 1kg<br/>
+                    2. 全隊「體脂率降幅總和」 &gt; 15%
+                  </div>
+                  <div className="bg-green-50 border border-green-200 p-2 rounded">
+                    <strong>x 1.3 精實團隊</strong><br/>
+                    1. 全員 4 人體重皆減少 &ge; 1kg
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-2 rounded">
+                    <strong>x 1.0 參加獎</strong><br/>
+                    只要有一人減重少於 1kg，即落入此區間。
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50">
+               <button onClick={() => setShowRules(false)} className="w-full bg-blue-100 text-blue-700 py-2.5 rounded-xl font-bold hover:bg-blue-200">
+                 我了解了
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Safe area helper class for iOS */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+      `}} />
+    </div>
+  );
+}
