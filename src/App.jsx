@@ -403,6 +403,33 @@ export default function App() {
                         </div>
                       </div>
                     )}
+                      {/* BMI 顯示區塊 */}
+                      {member.isValid && (() => {
+                        const heightM = parseFloat(member.height) / 100;
+                        const currW = parseFloat(member.currentWeight);
+                        if (!heightM || !currW) return null;
+                        const bmi = currW / (heightM * heightM);
+                        const gender = member.gender;
+                        let zone = '';
+                        let color = 'text-slate-500';
+                        if (gender === 'male') {
+                          if (bmi > 30) { zone = '紅區'; color = 'text-red-500'; }
+                          else if (bmi > 29) { zone = '橙區'; color = 'text-orange-500'; }
+                          else if (bmi > 27) { zone = '黃區'; color = 'text-yellow-500'; }
+                        } else if (gender === 'female') {
+                          if (bmi > 26) { zone = '紅區'; color = 'text-red-500'; }
+                          else if (bmi > 25) { zone = '橙區'; color = 'text-orange-500'; }
+                          else if (bmi > 24) { zone = '黃區'; color = 'text-yellow-500'; }
+                        }
+                        return (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className={`font-bold ${color}`}>BMI {bmi.toFixed(1)}{zone && `（${zone}）`}</span>
+                            {/* {zone && (
+                              <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${color} border-current bg-white/70`}>{zone}</span>
+                            )} */}
+                          </div>
+                        );
+                      })()}
                     {hasWarning && (
                        <div className="mt-2 text-[11px] text-red-500 flex items-start gap-1">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
