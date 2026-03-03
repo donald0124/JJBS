@@ -1,17 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  Share2, 
-  Info, 
-  AlertCircle, 
-  CheckCircle2, 
-  Trophy, 
-  User,
-  Dumbbell,
-  Flame
-} from 'lucide-react';
-
+import React, { useState, useMemo, useEffect } from 'react';
+import { Calendar, Dumbbell, Info, Trophy, AlertCircle, ChevronUp, ChevronDown, User, Flame, CheckCircle2, Share2, Clock } from 'lucide-react';
 // --- 初始資料結構 ---
 const initialMemberState = {
   name: '',
@@ -30,13 +18,47 @@ const defaultMembers = [
   { ...initialMemberState, id: 3, name: '隊員 D' },
 ];
 
+
+// --- 寫在 defaultMembers 下方，export default function App() 的上方 ---
+const getBmiInfo = (weight, height, gender) => {
+  const w = parseFloat(weight);
+  const h = parseFloat(height) / 100;
+  if (!w || !h || h <= 0) return null;
+  
+  const bmi = w / (h * h);
+  let zone = '標準';
+  let colorClass = 'text-green-600 bg-green-100'; // 預設標準顏色
+
+  if (gender === 'male') {
+    if (bmi > 30) { zone = '紅區'; colorClass = 'text-red-600 bg-red-100'; }
+    else if (bmi > 29) { zone = '橙區'; colorClass = 'text-orange-600 bg-orange-100'; }
+    else if (bmi > 27) { zone = '黃區'; colorClass = 'text-yellow-600 bg-yellow-100'; }
+  } else {
+    if (bmi > 26) { zone = '紅區'; colorClass = 'text-red-600 bg-red-100'; }
+    else if (bmi > 25) { zone = '橙區'; colorClass = 'text-orange-600 bg-orange-100'; }
+    else if (bmi > 24) { zone = '黃區'; colorClass = 'text-yellow-600 bg-yellow-100'; }
+  }
+  return { bmi: bmi.toFixed(1), zone, colorClass };
+};
+
 export default function App() {
   // --- 狀態管理 ---
   const [teamName, setTeamName] = useState('');
   const [members, setMembers] = useState(defaultMembers);
   const [expandedId, setExpandedId] = useState(0); // 預設展開第一位
   const [showRules, setShowRules] = useState(false);
+  const [showDatesModal, setShowDatesModal] = useState(false); // 新增：控制時程表彈出視窗
   const [copyStatus, setCopyStatus] = useState('');
+
+  // --- 計算倒數天數 ---
+  const daysLeft = useMemo(() => {
+    // 假設最終後測截止日為 2026-05-31 (請依實際情況修改)
+    const endDate = new Date('2026-05-31T23:59:59');
+    const today = new Date();
+    const diffTime = endDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0; // 若已結束則顯示 0
+  }, []);
 
   // --- LocalStorage 存取 ---
   useEffect(() => {
@@ -200,19 +222,29 @@ export default function App() {
       {/* --- Top Header --- */}
       <header className="bg-blue-600 text-white p-4 shadow-md rounded-b-2xl relative z-10">
         <div className="max-w-md mx-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <Dumbbell className="w-6 h-6 text-blue-200" />
-              2026減重競賽試算工具
-            </h1>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-xl font-bold flex items-center gap-2">
+                <Dumbbell className="w-6 h-6 text-blue-200" />
+                2026減重競賽試算工具
+              </h1>
+              {/* 新增的倒數計時膠囊按鈕 */}
+              <button 
+                onClick={() => setShowDatesModal(true)}
+                className="mt-2 bg-blue-500/40 hover:bg-blue-400 border border-blue-400/50 text-blue-50 text-[11px] py-1 px-3 rounded-full flex items-center gap-1.5 transition shadow-sm backdrop-blur-sm"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>距離最終結算還剩 <strong className="text-white text-sm">{daysLeft}</strong> 天</span>
+              </button>
+            </div>
             <button 
               onClick={() => setShowRules(true)}
-              className="p-2 bg-blue-500/50 rounded-full hover:bg-blue-400 transition"
+              className="p-2 bg-blue-500/50 rounded-full hover:bg-blue-400 transition shrink-0"
             >
               <Info className="w-5 h-5" />
             </button>
           </div>
-          
+                    
           <div className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm border border-white/20">
             <p className="text-blue-100 text-sm mb-1">團隊預估總分</p>
             <div className="text-5xl font-extrabold tracking-tight mb-2">
@@ -349,7 +381,18 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-4">
                       {/* 前測區塊 */}
                       <div className="bg-slate-100 p-3 rounded-xl border border-slate-200/60">
-                        <div className="text-xs font-bold text-slate-500 mb-2">前測基準</div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs font-bold text-slate-500">前測基準</span>
+                          {(() => {
+                            const info = getBmiInfo(member.initialWeight, member.height, member.gender);
+                            if (!info) return null;
+                            return (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${info.colorClass}`}>
+                                BMI {info.bmi} ({info.zone})
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <div className="space-y-2">
                           <div>
                             <label className="block text-[11px] text-slate-400 mb-0.5">體重 (kg)</label>
@@ -364,7 +407,18 @@ export default function App() {
 
                       {/* 最新區塊 */}
                       <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                        <div className="text-xs font-bold text-blue-600 mb-2">最新進度</div>
+                         <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs font-bold text-blue-600">最新進度</span>
+                          {(() => {
+                            const info = getBmiInfo(member.currentWeight, member.height, member.gender);
+                            if (!info) return null;
+                            return (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${info.colorClass}`}>
+                                BMI {info.bmi} ({info.zone})
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <div className="space-y-2">
                           <div>
                             <label className="block text-[11px] text-blue-400 mb-0.5">體重 (kg)</label>
@@ -382,20 +436,32 @@ export default function App() {
                     {member.isValid && (
                       <div className="mt-4 bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
                         <div className="flex gap-4">
+                          {/* 體重變化 */}
                           <div className="text-center">
-                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">減重</div>
-                            <div className={`text-sm font-bold ${hasWarning ? 'text-red-500' : 'text-slate-700'}`}>
-                              {member.stats.weightDrop > 0 ? `-${member.stats.weightDrop}` : member.stats.weightDrop} <span className="text-[10px] font-normal">kg</span>
+                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">體重變化</div>
+                            <div className={`text-sm font-bold ${parseFloat(member.stats.weightDrop) > 0 ? 'text-green-600' : parseFloat(member.stats.weightDrop) < 0 ? 'text-red-500' : 'text-slate-700'}`}>
+                              {parseFloat(member.stats.weightDrop) > 0 ? `↓ ${member.stats.weightDrop}` : parseFloat(member.stats.weightDrop) < 0 ? `↑ ${Math.abs(member.stats.weightDrop).toFixed(1)}` : '0.0'} <span className="text-[10px] font-normal">kg</span>
                             </div>
                           </div>
+
+                          {/* 體脂變化 */}
                           <div className="text-center">
-                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">降脂</div>
-                            <div className="text-sm font-bold text-slate-700">
-                              {member.stats.fatDrop > 0 ? `-${member.stats.fatDrop}` : member.stats.fatDrop} <span className="text-[10px] font-normal">%</span>
+                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">體脂變化</div>
+                            <div className={`text-sm font-bold ${parseFloat(member.stats.fatDrop) > 0 ? 'text-green-600' : parseFloat(member.stats.fatDrop) < 0 ? 'text-red-500' : 'text-slate-700'}`}>
+                              {parseFloat(member.stats.fatDrop) > 0 ? `↓ ${member.stats.fatDrop}` : parseFloat(member.stats.fatDrop) < 0 ? `↑ ${Math.abs(member.stats.fatDrop).toFixed(1)}` : '0.0'} <span className="text-[10px] font-normal">%</span>
+                            </div>
+                          </div>
+
+                          {/* BMI 變化 */}
+                          <div className="text-center">
+                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">BMI變化</div>
+                            <div className={`text-sm font-bold ${parseFloat(member.stats.bmiDrop) > 0 ? 'text-green-600' : parseFloat(member.stats.bmiDrop) < 0 ? 'text-red-500' : 'text-slate-700'}`}>
+                              {parseFloat(member.stats.bmiDrop) > 0 ? `↓ ${member.stats.bmiDrop}` : parseFloat(member.stats.bmiDrop) < 0 ? `↑ ${Math.abs(member.stats.bmiDrop).toFixed(2)}` : '0.00'}
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
+
+                        <div className="text-right pl-2 border-l border-slate-100">
                            <div className="text-[10px] text-blue-400 font-bold uppercase tracking-wider flex items-center justify-end gap-1">
                              <Flame className="w-3 h-3" /> 貢獻積分
                            </div>
@@ -403,33 +469,7 @@ export default function App() {
                         </div>
                       </div>
                     )}
-                      {/* BMI 顯示區塊 */}
-                      {member.isValid && (() => {
-                        const heightM = parseFloat(member.height) / 100;
-                        const currW = parseFloat(member.currentWeight);
-                        if (!heightM || !currW) return null;
-                        const bmi = currW / (heightM * heightM);
-                        const gender = member.gender;
-                        let zone = '';
-                        let color = 'text-slate-500';
-                        if (gender === 'male') {
-                          if (bmi > 30) { zone = '紅區'; color = 'text-red-500'; }
-                          else if (bmi > 29) { zone = '橙區'; color = 'text-orange-500'; }
-                          else if (bmi > 27) { zone = '黃區'; color = 'text-yellow-500'; }
-                        } else if (gender === 'female') {
-                          if (bmi > 26) { zone = '紅區'; color = 'text-red-500'; }
-                          else if (bmi > 25) { zone = '橙區'; color = 'text-orange-500'; }
-                          else if (bmi > 24) { zone = '黃區'; color = 'text-yellow-500'; }
-                        }
-                        return (
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className={`font-bold ${color}`}>BMI {bmi.toFixed(1)}{zone && `（${zone}）`}</span>
-                            {/* {zone && (
-                              <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${color} border-current bg-white/70`}>{zone}</span>
-                            )} */}
-                          </div>
-                        );
-                      })()}
+                    
                     {hasWarning && (
                        <div className="mt-2 text-[11px] text-red-500 flex items-start gap-1">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -512,6 +552,69 @@ export default function App() {
             <div className="p-4 border-t border-slate-100 bg-slate-50">
                <button onClick={() => setShowRules(false)} className="w-full bg-blue-100 text-blue-700 py-2.5 rounded-xl font-bold hover:bg-blue-200">
                  我了解了
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* --- 賽程時間表彈出視窗 --- */}
+      {showDatesModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="bg-slate-800 p-4 flex justify-between items-center text-white">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                 <Calendar className="w-5 h-5 text-blue-400" /> 重要賽程時刻表
+              </h3>
+              <button onClick={() => setShowDatesModal(false)} className="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            
+            <div className="p-6">
+              <div className="relative border-l-2 border-slate-200 ml-3 space-y-8">
+                
+                {/* 前測 */}
+                <div className="relative">
+                  <div className="absolute -left-[21px] bg-slate-200 w-4 h-4 rounded-full border-4 border-white"></div>
+                  <div className="pl-6">
+                    <h4 className="text-sm font-bold text-slate-500">🟢 階段一：前測基準</h4>
+                    <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" /> 2026/03/04 - 03/10
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1 bg-slate-50 p-1.5 rounded">雙主機測量體重、體脂取平均值</p>
+                  </div>
+                </div>
+
+                {/* 期中 */}
+                <div className="relative">
+                  <div className="absolute -left-[21px] bg-blue-500 w-4 h-4 rounded-full border-4 border-white shadow-[0_0_0_2px_rgba(59,130,246,0.2)]"></div>
+                  <div className="pl-6">
+                    <h4 className="text-sm font-bold text-blue-600">🔵 階段二：期中測量</h4>
+                    <p className="text-xs text-slate-600 mt-1 flex items-center gap-1 font-medium">
+                      <Clock className="w-3.5 h-3.5 text-blue-500" /> 2026/04/15 - 04/20
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1 bg-blue-50 p-1.5 rounded">單機測量，檢視團隊目前加成進度</p>
+                  </div>
+                </div>
+
+                {/* 後測結算 */}
+                <div className="relative">
+                  <div className="absolute -left-[21px] bg-amber-500 w-4 h-4 rounded-full border-4 border-white shadow-[0_0_0_2px_rgba(245,158,11,0.2)]"></div>
+                  <div className="pl-6">
+                    <h4 className="text-sm font-bold text-amber-600">🏆 階段三：最終後測結算</h4>
+                    <p className="text-xs text-slate-600 mt-1 flex items-center gap-1 font-medium">
+                      <Clock className="w-3.5 h-3.5 text-amber-500" /> 2026/05/25 - 05/31
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1 bg-amber-50 p-1.5 rounded border border-amber-100">雙主機測量，一翻兩瞪眼！決定最終排行</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 bg-slate-50">
+               <button onClick={() => setShowDatesModal(false)} className="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold hover:bg-slate-700 transition">
+                 繼續努力！
                </button>
             </div>
           </div>
