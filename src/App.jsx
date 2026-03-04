@@ -52,8 +52,8 @@ export default function App() {
 
   // --- 計算倒數天數 ---
   const daysLeft = useMemo(() => {
-    // 假設最終後測截止日為 2026-05-31 (請依實際情況修改)
-    const endDate = new Date('2026-05-31T23:59:59');
+    // 假設最終後測截止日為 2026-06-09 (請依實際情況修改)
+    const endDate = new Date('2026-06-09T11:59:59');
     const today = new Date();
     const diffTime = endDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -639,7 +639,7 @@ export default function App() {
                   <div className="pl-6">
                     <h4 className="text-sm font-bold text-slate-500">🟢 階段一：前測基準</h4>
                     <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" /> 2026/03/04 - 03/10
+                      <Clock className="w-3.5 h-3.5" /> 2026/03/04 - 03/10 12：00
                     </p>
                     <p className="text-[11px] text-slate-500 mt-1 bg-slate-50 p-1.5 rounded">雙主機測量體重、體脂取平均值</p>
                   </div>
@@ -651,7 +651,7 @@ export default function App() {
                   <div className="pl-6">
                     <h4 className="text-sm font-bold text-blue-600">🔵 階段二：期中測量</h4>
                     <p className="text-xs text-slate-600 mt-1 flex items-center gap-1 font-medium">
-                      <Clock className="w-3.5 h-3.5 text-blue-500" /> 2026/04/15 - 04/20
+                      <Clock className="w-3.5 h-3.5 text-blue-500" /> 2026/04/29 - 05/06 12：00
                     </p>
                     <p className="text-[11px] text-slate-500 mt-1 bg-blue-50 p-1.5 rounded">單機測量，檢視團隊目前加成進度</p>
                   </div>
@@ -663,7 +663,7 @@ export default function App() {
                   <div className="pl-6">
                     <h4 className="text-sm font-bold text-amber-600">🏆 階段三：最終後測結算</h4>
                     <p className="text-xs text-slate-600 mt-1 flex items-center gap-1 font-medium">
-                      <Clock className="w-3.5 h-3.5 text-amber-500" /> 2026/05/25 - 05/31
+                      <Clock className="w-3.5 h-3.5 text-amber-500" /> 2026/06/03 - 06/09 12：00
                     </p>
                     <p className="text-[11px] text-slate-500 mt-1 bg-amber-50 p-1.5 rounded border border-amber-100">雙主機測量，一翻兩瞪眼！決定最終排行</p>
                   </div>
