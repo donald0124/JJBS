@@ -7,5 +7,5 @@ export default defineConfig({
     react(),
     tailwindcss(), // 加上這行
   ],
-  base: '/JJBS/' // 如果要部署到 GitHub Pages，記得加上這行
+  //base: '/JJBS/' // 如果要部署到 GitHub Pages，記得加上這行
 })
