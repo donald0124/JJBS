@@ -303,7 +303,6 @@ export default function App() {
                 </span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2.5 relative">
-                 <div className="absolute top-0 bottom-0 left-[15%] w-px bg-red-400 z-10"></div>
                 <div className={`h-2.5 rounded-full ${teamStats.isFatGoalMet ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (parseFloat(teamStats.totalFatDrop) / 20) * 100)}%` }}></div>
               </div>
             </div>
