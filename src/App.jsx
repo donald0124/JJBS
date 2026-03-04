@@ -513,45 +513,106 @@ export default function App() {
       {showRules && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            
+            {/* Header */}
             <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
               <h3 className="font-bold text-lg flex items-center gap-2">
                  <Info className="w-5 h-5" /> 賽制規則說明
               </h3>
-              <button onClick={() => setShowRules(false)} className="text-blue-200 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setShowRules(false)} className="text-blue-200 hover:text-white text-2xl leading-none">&times;</button>
             </div>
-            <div className="p-5 overflow-y-auto space-y-4 text-sm text-slate-700">
+            
+            {/* Content Body */}
+            <div className="p-5 overflow-y-auto space-y-6 text-sm text-slate-700">
+              
+              {/* --- 1. 個人積分區塊 --- */}
               <section>
-                <h4 className="font-bold text-blue-600 mb-2 border-b border-blue-100 pb-1">🧮 1. 個人積分 (Personal Score)</h4>
-                <p className="mb-2 text-xs bg-slate-50 p-2 rounded">公式：[(BMI降幅 × 10) × 性別槓桿] + [體脂降幅 × 10]</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li><strong>性別槓桿：</strong> 男生以 BMI 24 為基準，女生以 21 為基準。</li>
-                  <li><strong>槓桿計算：</strong> 初始 BMI 減去基準值。最低保底 2 倍。(確保較瘦的隊友努力也有分)</li>
-                  <li><strong>體脂獎勵：</strong> 每降 1% 得 10 分 (不乘槓桿，純累計)。</li>
-                </ul>
+                <h4 className="font-bold text-blue-600 mb-3 border-b border-blue-100 pb-2 text-base">
+                  🧮 1. 個人積分完全解析
+                </h4>
+                
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4">
+                  <p className="font-bold text-slate-800 text-xs mb-1">核心計算公式：</p>
+                  <p className="text-blue-700 text-xs font-mono break-words">
+                    [(BMI降幅 × 10) × 性別槓桿] + [體脂降幅 × 10]
+                  </p>
+                </div>
+
+                <div className="space-y-4 text-xs leading-relaxed">
+                  <div>
+                    <strong className="text-slate-800 text-sm block mb-1">🔍 什麼是「性別槓桿」？</strong>
+                    <p className="text-slate-600">你的初始體重距離「健康標準」越遠，減下來的每一公斤能為健康帶來越大的紅利，因此系統會給你越高的「加倍係數」。</p>
+                    <div className="flex gap-4 mt-2 mb-2 font-medium text-slate-700">
+                      <span className="bg-slate-100 px-2 py-1 rounded">👨 男性基準：BMI 24</span>
+                      <span className="bg-slate-100 px-2 py-1 rounded">👩 女性基準：BMI 21</span>
+                    </div>
+                    <div className="bg-blue-50 text-blue-800 p-2.5 rounded-md border border-blue-100">
+                      <strong>📍 算法：</strong>「初始 BMI」減去「性別基準線」。<br/>
+                      <span className="text-blue-600/80 mt-1 block">例：男性初始 BMI 34，槓桿為 34 - 24 = <strong>10倍</strong>！</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <strong className="text-slate-800 text-sm block mb-1">🛡️ 最低保底 2 倍</strong>
+                    <p className="text-slate-600">不管你多瘦，只要公式算出來小於 2，系統直接給你 <strong>2 倍</strong> 的基礎槓桿。確保身型標準的隊友努力也有分！</p>
+                  </div>
+
+                  <div>
+                    <strong className="text-slate-800 text-sm block mb-1">🥓 體脂獎勵 (純累計)</strong>
+                    <p className="text-slate-600">每降 1% 得 10 分 (不乘槓桿，一視同仁)。這是標準體型隊友最主要的得分來源！</p>
+                  </div>
+                </div>
               </section>
+
+              {/* --- 2. 團隊加成區塊 --- */}
               <section>
-                <h4 className="font-bold text-blue-600 mb-2 border-b border-blue-100 pb-1">🚀 2. 團隊加成 (Team Multiplier)</h4>
-                <p className="mb-2 text-xs bg-slate-50 p-2 rounded">最終得分 = (全隊個人積分平均) × 加成倍率</p>
-                <div className="space-y-2">
-                  <div className="bg-yellow-50 border border-yellow-200 p-2 rounded">
-                    <strong>x 1.5 傳奇團隊</strong><br/>
-                    1. 全員 4 人體重皆減少 &ge; 1kg<br/>
-                    2. 全隊「體脂率降幅總和」 &gt; 15%
+                <h4 className="font-bold text-blue-600 mb-3 border-b border-blue-100 pb-2 text-base">
+                  🚀 2. 團隊加成 (Team Multiplier)
+                </h4>
+                
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-3">
+                  <p className="text-blue-700 text-xs font-mono break-words">
+                    最終得分 = (全隊個人積分平均) × 加成倍率
+                  </p>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                    <strong className="text-yellow-800 text-sm flex items-center gap-1 mb-1">
+                      🏆 x 1.5 傳奇團隊
+                    </strong>
+                    <ul className="list-disc pl-4 text-yellow-700 space-y-1">
+                      <li>全員 4 人體重皆減少 &ge; 1kg</li>
+                      <li>全隊「體脂率降幅總和」 &gt; 15%</li>
+                    </ul>
                   </div>
-                  <div className="bg-green-50 border border-green-200 p-2 rounded">
-                    <strong>x 1.3 精實團隊</strong><br/>
-                    1. 全員 4 人體重皆減少 &ge; 1kg
+                  
+                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                    <strong className="text-green-800 text-sm flex items-center gap-1 mb-1">
+                      🔥 x 1.3 精實團隊
+                    </strong>
+                    <ul className="list-disc pl-4 text-green-700 space-y-1">
+                      <li>全員 4 人體重皆減少 &ge; 1kg</li>
+                    </ul>
                   </div>
-                  <div className="bg-slate-50 border border-slate-200 p-2 rounded">
-                    <strong>x 1.0 參加獎</strong><br/>
-                    只要有一人減重少於 1kg，即落入此區間。
+                  
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
+                    <strong className="text-slate-700 text-sm flex items-center gap-1 mb-1">
+                      😐 x 1.0 參加獎
+                    </strong>
+                    <p className="text-slate-500">只要有一人減重少於 1kg，即落入此區間。</p>
                   </div>
                 </div>
               </section>
             </div>
+            
+            {/* Footer / Action */}
             <div className="p-4 border-t border-slate-100 bg-slate-50">
-               <button onClick={() => setShowRules(false)} className="w-full bg-blue-100 text-blue-700 py-2.5 rounded-xl font-bold hover:bg-blue-200">
-                 我了解了
+               <button 
+                 onClick={() => setShowRules(false)} 
+                 className="w-full bg-blue-100 text-blue-700 py-3 rounded-xl font-bold text-base hover:bg-blue-200 transition-colors active:scale-[0.98]"
+               >
+                 我了解了！
                </button>
             </div>
           </div>
