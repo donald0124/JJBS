@@ -49,6 +49,17 @@ export default function App() {
   const [showRules, setShowRules] = useState(false);
   const [showDatesModal, setShowDatesModal] = useState(false); // 新增：控制時程表彈出視窗
   const [copyStatus, setCopyStatus] = useState('');
+  const [dontShow, setDontShow] = useState(false);
+
+  // --- 新增：處理關閉規則視窗 ---
+  const handleCloseRules = () => {
+    if (dontShow) {
+      localStorage.setItem('hide-health-leverage-rules', 'true');
+    } else {
+      localStorage.removeItem('hide-health-leverage-rules'); // 若取消勾選，則清掉設定
+    }
+    setShowRules(false);
+  };
 
   // --- 計算倒數天數 ---
   const daysLeft = useMemo(() => {
@@ -60,8 +71,9 @@ export default function App() {
     return diffDays > 0 ? diffDays : 0; // 若已結束則顯示 0
   }, []);
 
-  // --- LocalStorage 存取 ---
+  // --- LocalStorage 存取與首次載入檢查 ---
   useEffect(() => {
+    // 1. 讀取之前的隊伍資料
     const savedData = localStorage.getItem('health-leverage-3-data');
     if (savedData) {
       try {
@@ -72,7 +84,16 @@ export default function App() {
         console.error("Failed to parse saved data", e);
       }
     }
+
+    // 2. 檢查是否需要自動顯示規則視窗 (新增這段)
+    const hideRules = localStorage.getItem('hide-health-leverage-rules');
+    if (hideRules === 'true') {
+      setDontShow(true);
+    } else {
+      setShowRules(true); // 如果沒設定過隱藏，就預設彈出
+    }
   }, []);
+
 
   useEffect(() => {
     localStorage.setItem('health-leverage-3-data', JSON.stringify({ teamName, members }));
@@ -174,21 +195,40 @@ export default function App() {
     text += `🔥 目前團隊總分：${teamStats.finalScore} 分 (倍率 x${teamStats.multiplier})\n\n`;
     
     text += `📊 團隊加成任務：\n`;
-    text += `${teamStats.isWeightGoalMet ? '✅' : '❌'} 全員減重大於 1kg (${teamStats.membersMeetingWeightGoal}/4達成)\n`;
-    text += `${teamStats.isFatGoalMet ? '✅' : '❌'} 體脂降幅大於 15% (累計 ${teamStats.totalFatDrop}%)\n\n`;
+    text += `${teamStats.isWeightGoalMet ? '✅' : '❌'} 全員減重 ≥ 1kg (${teamStats.membersMeetingWeightGoal}/4達成)\n`;
+    text += `${teamStats.isFatGoalMet ? '✅' : '❌'} 體脂降幅 > 15% (累計 ${teamStats.totalFatDrop}%)\n\n`;
 
-    text += `👤 隊員個別貢獻：\n`;
+    text += `🧑‍🤝‍🧑 隊員個別戰況：\n`;
+    
+    // 輔助函式：處理數字與箭頭符號
+    const formatChange = (value, unit = '') => {
+      const num = parseFloat(value);
+      if (num > 0) return `↓${num}${unit}`;
+      if (num < 0) return `↑${Math.abs(num)}${unit}`;
+      return `0.0${unit}`;
+    };
+
     teamStats.members.forEach(m => {
       if (m.isValid) {
-        text += `- ${m.name || '未命名'} (${m.gender === 'male' ? '男' : '女'}): 貢獻 ${m.stats.score}分 (槓桿 ${m.stats.leverage}x)\n`;
+        // 計算初始 BMI
+        const heightM = parseFloat(m.height) / 100;
+        const initBMI = (parseFloat(m.initialWeight) / (heightM * heightM)).toFixed(1);
+    
+        text += `👤 ${m.name || '未命名'} (${m.gender === 'male' ? '男' : '女'}) | 起始：${m.initialWeight}kg / ${m.initialFat}% BMI=${initBMI}\n`;
+        text += `⭐ 貢獻 ${m.stats.score} 分 (槓桿 ${m.stats.leverage}x)\n`;
+        text += `📈 進度：體重${formatChange(m.stats.weightDrop, 'kg')} | 體脂${formatChange(m.stats.fatDrop, '%')} | BMI${formatChange(m.stats.bmiDrop)}\n`;
+        text += `\n`;
       } else {
-        text += `- ${m.name || '未命名'}: 資料未齊全\n`;
+        text += `👤 ${m.name || '未命名'} : ⚠️ 測量資料尚未齊全\n`;
+        text += `\n`;
       }
     });
 
-    text += `\n💪 繼續加油，脂肪殺手們！\n👉 點此模擬分數：https://donald0124.github.io/JJBS/`;
+    // 🌟 在結語這裡加上了倒數天數 (daysLeft)
+    text += `\n⏳ 倒數 ${daysLeft} 天！繼續加油，脂肪殺手們！\n👉 點此模擬分數：https://donald0124.github.io/JJBS/`;
     return text;
   };
+   
 
   const handleCopy = () => {
     const text = generateShareText();
@@ -234,7 +274,7 @@ export default function App() {
                 className="mt-2 bg-blue-500/40 hover:bg-blue-400 border border-blue-400/50 text-blue-50 text-[11px] py-1 px-3 rounded-full flex items-center gap-1.5 transition shadow-sm backdrop-blur-sm"
               >
                 <Calendar className="w-3.5 h-3.5" />
-                <span>距離最終結算還剩 <strong className="text-white text-sm">{daysLeft}</strong> 天</span>
+                <span>距離最終結算還剩 <strong className="text-white text-sm">{daysLeft}</strong> 天 (點擊查看量測日程)</span>
               </button>
             </div>
             <button 
@@ -303,7 +343,7 @@ export default function App() {
                 </span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2.5 relative">
-                <div className={`h-2.5 rounded-full ${teamStats.isFatGoalMet ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (parseFloat(teamStats.totalFatDrop) / 20) * 100)}%` }}></div>
+                <div className={`h-2.5 rounded-full ${teamStats.isFatGoalMet ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (parseFloat(teamStats.totalFatDrop) / 15) * 100)}%` }}></div>
               </div>
             </div>
           </div>
@@ -518,7 +558,7 @@ export default function App() {
               <h3 className="font-bold text-lg flex items-center gap-2">
                  <Info className="w-5 h-5" /> 賽制規則說明
               </h3>
-              <button onClick={() => setShowRules(false)} className="text-blue-200 hover:text-white text-2xl leading-none">&times;</button>
+              <button onClick={handleCloseRules} className="text-blue-200 hover:text-white text-2xl leading-none">&times;</button>
             </div>
             
             {/* Content Body */}
@@ -606,9 +646,26 @@ export default function App() {
             </div>
             
             {/* Footer / Action */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50">
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col gap-3">
+               
+               {/* 溫馨提醒與 Checkbox 區塊 */}
+               <div className="flex items-center justify-between text-xs px-1">
+                 <label className="flex items-center gap-2 cursor-pointer text-slate-600 hover:text-slate-800">
+                   <input 
+                     type="checkbox" 
+                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                     checked={dontShow}
+                     onChange={(e) => setDontShow(e.target.checked)}
+                   />
+                   <span>我知道了，下次不自動顯示</span>
+                 </label>
+                 <span className="flex items-center gap-1 text-slate-400">
+                   <Info className="w-3.5 h-3.5" /> 隨時可點右上角查看
+                 </span>
+               </div>
+
                <button 
-                 onClick={() => setShowRules(false)} 
+                 onClick={handleCloseRules} 
                  className="w-full bg-blue-100 text-blue-700 py-3 rounded-xl font-bold text-base hover:bg-blue-200 transition-colors active:scale-[0.98]"
                >
                  我了解了！
@@ -665,7 +722,7 @@ export default function App() {
                     <p className="text-xs text-slate-600 mt-1 flex items-center gap-1 font-medium">
                       <Clock className="w-3.5 h-3.5 text-amber-500" /> 2026/06/03 - 06/09 12：00
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-1 bg-amber-50 p-1.5 rounded border border-amber-100">雙主機測量，一翻兩瞪眼！決定最終排行</p>
+                    <p className="text-[11px] text-slate-500 mt-1 bg-amber-50 p-1.5 rounded border border-amber-100">雙主機測量，一翻兩瞪眼！決定最終排名</p>
                   </div>
                 </div>
 
